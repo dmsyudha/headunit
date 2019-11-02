@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 var _ = require('lodash');
 import BluetoothSerial from 'react-native-bluetooth-serial';
+import {BleManager} from 'react-native-ble-plx';
 
 export default class App extends Component<{}> {
   constructor(props) {
     super(props);
+    this.manager = new BleManager();
     this.state = {
       isEnabled: false,
       discovering: false,
@@ -24,43 +26,98 @@ export default class App extends Component<{}> {
       connected: false,
     };
   }
-  componentWillMount() {
-    Promise.all([BluetoothSerial.isEnabled(), BluetoothSerial.list()]).then(
-      values => {
-        const [isEnabled, devices] = values;
 
-        this.setState({isEnabled, devices});
-      },
-    );
+  scanAndConnect() {
+    // this.manager.isDeviceConnected('40:55:60:72')
+    this.manager.startDeviceScan(null, null, (error, device) => {
+      if (error) {
+        // Handle error (scanning will be stopped automatically)
+        return;
+      }
 
-    BluetoothSerial.on('bluetoothEnabled', () => {
-      Promise.all([BluetoothSerial.isEnabled(), BluetoothSerial.list()]).then(
-        values => {
-          const [isEnabled, devices] = values;
-          this.setState({devices});
-        },
-      );
+      // Check if it is a device you are looking for based on advertisement data
+      // or other criteria.
+      if (device.name === 'bluino' || device.name === 'SensorTag') {
+        // Stop scanning as it's not necessary if you are scanning for one device.
+        this.manager.stopDeviceScan();
+        // Proceed with connection.
+        device
+          .connect()
+          .then(device => {
 
-      BluetoothSerial.on('bluetoothDisabled', () => {
-        this.setState({devices: []});
-      });
-      BluetoothSerial.on('error', err => console.log(`Error: ${err.message}`));
+            this.props.navigation.navigate('Main');
+            // console.log(
+            //   'Discover All',
+            //   device.discoverAllServicesAndCharacteristics(),
+            // );
+            // return device.discoverAllServicesAndCharacteristics();
+          })
+          .then(device => {
+
+            // Do work on device with services and characteristics
+          })
+          .catch(error => {
+            // Handle errors
+          });
+      }
     });
+  }
+  componentWillMount() {
+    const subscription = this.manager.onStateChange(state => {
+      if (state === 'PoweredOn') {
+        this.scanAndConnect();
+        subscription.remove();
+      }
+    }, true);
+
+    // Promise.all([BluetoothSerial.isEnabled(), BluetoothSerial.list()]).then(
+    //   values => {
+    //     const [isEnabled, devices] = values;
+    //
+    //     this.setState({isEnabled, devices});
+    //   },
+    // );
+    //
+    // BluetoothSerial.on('bluetoothEnabled', () => {
+    //   Promise.all([BluetoothSerial.isEnabled(), BluetoothSerial.list()]).then(
+    //     values => {
+    //       const [isEnabled, devices] = values;
+    //       this.setState({devices});
+    //     },
+    //   );
+    //
+    //   BluetoothSerial.on('bluetoothDisabled', () => {
+    //     this.setState({devices: []});
+    //   });
+    //   BluetoothSerial.on('error', err => console.log(`Error: ${err.message}`));
+    // });
   }
   connect(device) {
     this.setState({connecting: true});
-    BluetoothSerial.connect(device.id)
-      .then(res => {
-        console.log(`Connected to device ${device.name}`);
-
-        ToastAndroid.show(
-          `Connected to device ${device.name}`,
-          ToastAndroid.SHORT,
-        );
-      })
-      .catch(err => console.log(err.message));
+    // BluetoothSerial.connect(device.id)
+    //   .then(res => {
+    //     console.log(`Connected to device ${device.name}`);
+    //
+    //     ToastAndroid.show(
+    //       `Connected to device ${device.name}`,
+    //       ToastAndroid.SHORT,
+    //     );
+    //   })
+    //   .catch(err => console.log(err.message));
   }
-  _renderItem(item) {
+  // _renderItem(item) {
+  //   return (
+  //     <TouchableOpacity onPress={() => this.connect(item.item)}>
+  //       <View style={styles.deviceNameWrap}>
+  //         <Text style={styles.deviceName}>
+  //           {item.item.name ? item.item.name : item.item.id}
+  //         </Text>
+  //       </View>
+  //     </TouchableOpacity>
+  //   );
+  // }
+
+  _renderUnpaired(item) {
     return (
       <TouchableOpacity onPress={() => this.connect(item.item)}>
         <View style={styles.deviceNameWrap}>
@@ -90,29 +147,30 @@ export default class App extends Component<{}> {
       this.disable();
     }
   }
-  discoverAvailableDevices() {
-    if (this.state.discovering) {
-      return false;
-    } else {
-      this.setState({discovering: true});
-      BluetoothSerial.discoverUnpairedDevices()
-        .then(unpairedDevices => {
-          const uniqueDevices = _.uniqBy(unpairedDevices, 'id');
-          console.log(uniqueDevices);
-          this.setState({unpairedDevices: uniqueDevices, discovering: false});
-        })
-        .catch(err => console.log(err.message));
-    }
-  }
-  toggleSwitch() {
-    BluetoothSerial.write('T')
-      .then(res => {
-        console.log(res);
-        console.log('Successfuly wrote to device');
-        this.setState({connected: true});
-      })
-      .catch(err => console.log(err.message));
-  }
+  // discoverAvailableDevices() {
+  //   if (this.state.discovering) {
+  //     return false;
+  //   } else {
+  //     this.setState({discovering: true});
+  //     BluetoothSerial.discoverUnpairedDevices()
+  //       .then(unpairedDevices => {
+  //         const uniqueDevices = _.uniqBy(unpairedDevices, 'id');
+  //         console.log(uniqueDevices);
+  //         console.log('ga ada');
+  //         this.setState({unpairedDevices: uniqueDevices, discovering: false});
+  //       })
+  //       .catch(err => console.log(err.message));
+  //   }
+  // }
+  // toggleSwitch() {
+  //   BluetoothSerial.write('1')
+  //     .then(res => {
+  //       console.log(res);
+  //       console.log('Successfuly wrote to device');
+  //       this.setState({connected: true});
+  //     })
+  //     .catch(err => console.log(err.message));
+  // }
   render() {
     return (
       <View style={styles.container}>
@@ -126,18 +184,19 @@ export default class App extends Component<{}> {
           </View>
         </View>
         <Button
-          onPress={this.discoverAvailableDevices.bind(this)}
+          onPress={this.scanAndConnect.bind(this)}
           title="Scan for Devices"
           color="#841584"
         />
+
         <FlatList
           style={{flex: 1}}
-          data={this.state.devices}
+          data={this.state.unpairedDevices}
           keyExtractor={item => item.id}
-          renderItem={item => this._renderItem(item)}
+          renderItem={item => this._renderUnpaired(item)}
         />
         <Button
-          onPress={this.toggleSwitch.bind(this)}
+          onPress={this.scanAndConnect.bind(this)}
           title="Switch(On/Off)"
           color="#841584"
         />
