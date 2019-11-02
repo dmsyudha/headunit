@@ -9,13 +9,13 @@ import {createAppContainer} from 'react-navigation';
 import {createStackNavigator} from 'react-navigation-stack';
 
 const RootStack = createStackNavigator({
-  Loading: {
-    screen: Loading,
-  },
   Main: {
     screen: Main,
   },
-  initialRouteName: Loading,
+  Loading: {
+    screen: Loading,
+  },
+  initialRouteName: Main,
 });
 
 const App = createAppContainer(RootStack);
